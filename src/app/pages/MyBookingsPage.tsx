@@ -1,179 +1,71 @@
-import React, { useState } from 'react';
-import { BookingCard } from '../components/BookingCard';
-import { bookings } from '../data/mockData';
-import { authService } from '../utils/auth';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Input } from '../components/ui/input';
+import { CalendarPlus, ClipboardList } from 'lucide-react';
+import type { BookingStatus } from '@shared/config';
+import type { Booking } from '@shared/types';
 import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Search, Calendar, Filter } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
-import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { BookingCard } from '../components/BookingCard';
+import { EmptyState, LoadState, PageHeader } from '../components/PageHeader';
+import { useAuth } from '../auth/AuthContext';
+import { useApi } from '../hooks/useApi';
+import { api } from '../api/client';
+
+const TABS: { key: string; label: string; statuses: BookingStatus[] }[] = [
+  { key: 'current', label: 'Current & upcoming', statuses: ['pending', 'configuring', 'ready', 'active'] },
+  { key: 'queue', label: 'In queue', statuses: ['queued'] },
+  { key: 'past', label: 'Past', statuses: ['purging', 'completed', 'rejected', 'cancelled'] },
+];
 
 export function MyBookingsPage() {
   const navigate = useNavigate();
-  const currentUser = authService.getCurrentUser();
+  const { can } = useAuth();
+  const { data, loading, error, setData } = useApi(() => api.bookings.mine());
+  const [tab, setTab] = useState('current');
 
-  if (!currentUser) {
-    navigate('/login', { replace: true });
-    return null;
-  }
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  const userBookings = bookings.filter(b => b.userId === currentUser.id);
-
-  const upcomingBookings = userBookings
-    .filter(b => new Date(b.date) >= new Date() && b.status !== 'cancelled')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  const pastBookings = userBookings
-    .filter(b => new Date(b.date) < new Date() || b.status === 'cancelled')
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  const filterBookings = (bookingsList: typeof bookings) => {
-    return bookingsList.filter(booking => {
-      // Search filter
-      if (searchQuery && !booking.roomName.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !booking.building.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-
-      // Status filter
-      if (statusFilter !== 'all' && booking.status !== statusFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  };
-
-  const handleCancel = (booking: typeof bookings[0]) => {
-    toast.success(`Booking for ${booking.roomName} has been cancelled.`);
-  };
-
-  const handleEdit = (booking: typeof bookings[0]) => {
-    toast.info('Edit booking functionality coming soon!');
-  };
-
-  const handleView = (booking: typeof bookings[0]) => {
-    toast.info('View booking details coming soon!');
-  };
+  const replace = (updated: Booking) => setData((list) => list?.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)) ?? null);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">My Bookings</h1>
-        <p className="text-muted-foreground">
-          View and manage all your room bookings
-        </p>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search bookings..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full md:w-48">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="upcoming" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="upcoming">
-            Upcoming ({upcomingBookings.length})
-          </TabsTrigger>
-          <TabsTrigger value="past">
-            Past ({pastBookings.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upcoming" className="space-y-4">
-          {filterBookings(upcomingBookings).length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No upcoming bookings</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  {searchQuery || statusFilter !== 'all'
-                    ? 'No bookings match your search criteria.'
-                    : "You don't have any upcoming room bookings."}
-                </p>
-                {!(searchQuery || statusFilter !== 'all') && (
-                  <Button onClick={() => window.location.href = '/rooms'}>
-                    Book a Room
-                  </Button>
+      <PageHeader
+        title="My bookings"
+        description="Bookings you made or that were made for you."
+        actions={
+          (can('bookTeaching') || can('bookBackup')) && (
+            <Button onClick={() => navigate('/app/book')}>
+              <CalendarPlus className="mr-2 h-4 w-4" /> New booking
+            </Button>
+          )
+        }
+      />
+      <LoadState loading={loading && !data} error={error} />
+      {data && (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            {TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label} ({data.filter((b) => t.statuses.includes(b.status)).length})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {TABS.map((t) => {
+            const list = data.filter((b) => t.statuses.includes(b.status));
+            return (
+              <TabsContent key={t.key} value={t.key} className="mt-4">
+                {list.length === 0 ? (
+                  <EmptyState icon={<ClipboardList className="h-10 w-10" />} title="Nothing here yet" />
+                ) : (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {list.map((b) => (
+                      <BookingCard key={b.id} booking={b} onChanged={replace} showPerson={b.userId !== b.bookedById} />
+                    ))}
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filterBookings(upcomingBookings).map(booking => (
-                <BookingCard
-                  key={booking.id}
-                  booking={booking}
-                  onView={handleView}
-                  onEdit={handleEdit}
-                  onCancel={handleCancel}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="past" className="space-y-4">
-          {filterBookings(pastBookings).length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No past bookings</h3>
-                <p className="text-muted-foreground text-center">
-                  {searchQuery || statusFilter !== 'all'
-                    ? 'No bookings match your search criteria.'
-                    : "You don't have any past bookings yet."}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filterBookings(pastBookings).map(booking => (
-                <BookingCard
-                  key={booking.id}
-                  booking={booking}
-                  onView={handleView}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      )}
     </div>
   );
 }
