@@ -28,6 +28,15 @@ export default defineConfig({
     alias: {
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
+      // Business rules and types shared with the server
+      '@shared': path.resolve(__dirname, './shared'),
+    },
+  },
+
+  // In development the API server runs separately (npm run dev starts both).
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3001',
     },
   },
 
