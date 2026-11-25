@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { can, type Permission } from '@shared/config';
 import type { User } from '@shared/types';
 import { api, setAuthProblemHandler } from '../api/client';
+import { clearAllDrafts } from '../utils/bookingDraft';
 
 interface AuthState {
   user: User | null;
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await api.auth.logout().catch(() => undefined);
+    clearAllDrafts();
     setUser(null);
   }, []);
 

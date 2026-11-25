@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
-import { AlertTriangle, BookOpen, Check, HardDriveDownload, ListOrdered } from 'lucide-react';
+import { AlertTriangle, BookOpen, Check, HardDriveDownload, History, ListOrdered } from 'lucide-react';
 import {
   BOOKING_RULES,
   BOOKING_TYPE_LABELS,
@@ -25,10 +25,11 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Calendar } from '../components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { PageHeader } from '../components/PageHeader';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth, useUser } from '../auth/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { api } from '../api/client';
 import { specs } from '../utils/format';
+import { clearDraft, loadDraft, saveDraft, type BookingDraft } from '../utils/bookingDraft';
 
 const STEPS = ['Details', 'Requirements', 'Dates & VM', 'Review'];
 const DEFAULT_REQUIREMENTS: Requirements = { cpuCores: 4, memoryGb: 8, storageGb: 100, software: [] };
@@ -53,25 +54,52 @@ function SpecSelect({ label, value, options, unit, onChange }: { label: string; 
   );
 }
 
+// The saved draft, unless the page was opened for a different booking
+// (e.g. "Book VM" on another course) or it can't be used any more.
+function usableDraft(userId: number, allowedTypes: BookingType[], params: URLSearchParams): BookingDraft | null {
+  const draft = loadDraft(userId);
+  if (!draft || !allowedTypes.includes(draft.type)) return null;
+  if (params.get('type') && params.get('type') !== draft.type) return null;
+  if (params.get('course') && Number(params.get('course')) !== draft.courseId) return null;
+  // Dates in the past can't be booked any more; ask for new ones.
+  const earliest = addDays(todayISO(), BOOKING_RULES.minLeadDays);
+  if (draft.startDate && draft.startDate < earliest) {
+    return { ...draft, startDate: null, endDate: null, vmChoice: 'auto', step: Math.min(draft.step, 2) };
+  }
+  return draft;
+}
+
 export function NewBookingPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { can } = useAuth();
+  const user = useUser();
   const allowedTypes = (['teaching', 'backup'] as BookingType[]).filter((t) => can(t === 'teaching' ? 'bookTeaching' : 'bookBackup'));
-  const initialType = allowedTypes.find((t) => t === params.get('type')) ?? allowedTypes[0];
+  const freshType = allowedTypes.find((t) => t === params.get('type')) ?? allowedTypes[0];
+  const freshCourseId = params.get('course') ? Number(params.get('course')) : null;
+  const [draft] = useState(() => usableDraft(user.id, allowedTypes, params));
 
-  const [step, setStep] = useState(0);
-  const [type, setType] = useState<BookingType | undefined>(initialType);
-  const [courseId, setCourseId] = useState<number | null>(params.get('course') ? Number(params.get('course')) : null);
-  const [category, setCategory] = useState<VmCategory>('BACKUP');
-  const [purpose, setPurpose] = useState('');
-  const [notes, setNotes] = useState('');
-  const [req, setReq] = useState<Requirements>(DEFAULT_REQUIREMENTS);
-  const [range, setRange] = useState<DateRange | undefined>();
-  const [vmChoice, setVmChoice] = useState<'auto' | number>('auto');
+  const [step, setStep] = useState(draft?.step ?? 0);
+  const [type, setType] = useState<BookingType | undefined>(draft?.type ?? freshType);
+  const [courseId, setCourseId] = useState<number | null>(draft ? draft.courseId : freshCourseId);
+  const [category, setCategory] = useState<VmCategory>(draft?.category ?? 'BACKUP');
+  const [purpose, setPurpose] = useState(draft?.purpose ?? '');
+  const [notes, setNotes] = useState(draft?.notes ?? '');
+  const [req, setReq] = useState<Requirements>(draft?.requirements ?? DEFAULT_REQUIREMENTS);
+  const [range, setRange] = useState<DateRange | undefined>(
+    draft?.startDate
+      ? { from: parseISODate(draft.startDate), to: draft.endDate ? parseISODate(draft.endDate) : undefined }
+      : undefined,
+  );
+  const [vmChoice, setVmChoice] = useState<'auto' | number>(draft?.vmChoice ?? 'auto');
+  const [restored, setRestored] = useState(!!draft);
   const [availability, setAvailability] = useState<VmAvailability[] | null>(null);
   const [queueLength, setQueueLength] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // The course whose defaults (category, purpose) were last filled in, so a
+  // restored draft keeps what the person typed.
+  const defaultsFor = useRef<number | null>(draft ? draft.courseId : null);
+  const finished = useRef(false);
 
   const courses = useApi(() => (can('bookTeaching') ? api.courses.list(!can('bookOnBehalf')) : Promise.resolve([])));
   const course = courses.data?.find((c) => c.id === courseId);
@@ -82,26 +110,62 @@ export function NewBookingPage() {
   const startDate = range?.from ? toISODate(range.from) : null;
   const endDate = range?.to ? toISODate(range.to) : null;
 
-  // Pick sensible defaults when the type or course changes.
+  // Fill in the course's category and a default purpose when a course is chosen.
   useEffect(() => {
-    if (!isTeaching) {
-      setCategory('BACKUP');
-    } else if (course) {
-      setCategory(course.program);
-      setPurpose(`${course.code} ${course.name} practical sessions`);
-    }
+    if (!isTeaching || !course || defaultsFor.current === course.id) return;
+    defaultsFor.current = course.id;
+    setCategory(course.program);
+    setPurpose(`${course.code} ${course.name} practical sessions`);
+  }, [isTeaching, course?.id]);
+
+  // Changing the type or course invalidates the chosen dates and VM.
+  const changeType = (t: BookingType) => {
+    if (t === type) return;
+    setType(t);
+    setCategory(t === 'backup' ? 'BACKUP' : (course?.program ?? 'CS'));
     setRange(undefined);
     setVmChoice('auto');
-  }, [type, courseId, course?.id]);
+  };
+  const changeCourse = (id: number) => {
+    setCourseId(id);
+    setRange(undefined);
+    setVmChoice('auto');
+  };
 
-  // Check which VMs are free once the dates are picked.
+  // Save the unfinished booking as it is filled in.
+  useEffect(() => {
+    if (finished.current || !type) return;
+    const untouched = step === 0 && !purpose.trim() && !courseId && !startDate && !notes.trim();
+    if (untouched) return clearDraft(user.id);
+    saveDraft(user.id, { type, courseId, category, purpose, notes, requirements: req, startDate, endDate, vmChoice, step });
+  }, [type, courseId, category, purpose, notes, req, startDate, endDate, vmChoice, step]);
+
+  const startOver = () => {
+    clearDraft(user.id);
+    defaultsFor.current = null;
+    setRestored(false);
+    setStep(0);
+    setType(freshType);
+    setCourseId(freshCourseId);
+    setCategory('BACKUP');
+    setPurpose('');
+    setNotes('');
+    setReq(DEFAULT_REQUIREMENTS);
+    setRange(undefined);
+    setVmChoice('auto');
+  };
+
+  // Check which VMs are free once the dates are picked. A VM chosen earlier is
+  // kept if it is still free and big enough.
   useEffect(() => {
     setAvailability(null);
-    setVmChoice('auto');
     if (!startDate || !endDate) return;
     api.vms
       .availability({ category, startDate, endDate, cpuCores: req.cpuCores, memoryGb: req.memoryGb, storageGb: req.storageGb })
-      .then(setAvailability)
+      .then((list) => {
+        setAvailability(list);
+        setVmChoice((c) => (c === 'auto' || list.some((v) => v.id === c && v.available && v.meetsRequirements) ? c : 'auto'));
+      })
       .catch((e) => toast.error(e.message));
     if (!isTeaching) api.bookings.queue().then((q) => setQueueLength(q.length)).catch(() => undefined);
   }, [startDate, endDate, category, req.cpuCores, req.memoryGb, req.storageGb]);
@@ -145,6 +209,8 @@ export function NewBookingPage() {
         notes: notes.trim() || undefined,
         vmId: vmChoice === 'auto' ? undefined : vmChoice,
       });
+      finished.current = true;
+      clearDraft(user.id);
       if (booking.status === 'queued') {
         toast.success(`Added to the backup queue (number ${booking.queuePosition})`);
         navigate('/app/queue');
@@ -169,6 +235,18 @@ export function NewBookingPage() {
         title="New booking"
         description={isTeaching ? 'Reserve a virtual machine for a course on the academic schedule.' : 'Reserve a backup VM, for example for your final year project.'}
       />
+
+      {restored && (
+        <div className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" />
+            We kept the booking you started earlier. Carry on where you left off.
+          </span>
+          <Button variant="outline" size="sm" onClick={startOver}>
+            Start over
+          </Button>
+        </div>
+      )}
 
       {/* Steps */}
       <ol className="grid grid-cols-4 gap-2">
@@ -196,7 +274,7 @@ export function NewBookingPage() {
                     <button
                       key={t}
                       type="button"
-                      onClick={() => setType(t)}
+                      onClick={() => changeType(t)}
                       className={`rounded-xl border p-4 text-left transition-colors ${type === t ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
                     >
                       <Icon className="h-5 w-5 text-primary mb-2" />
@@ -214,7 +292,7 @@ export function NewBookingPage() {
               <>
                 <div className="space-y-2">
                   <Label>Course (from the academic schedule)</Label>
-                  <Select value={courseId ? String(courseId) : ''} onValueChange={(v) => setCourseId(Number(v))}>
+                  <Select value={courseId ? String(courseId) : ''} onValueChange={(v) => changeCourse(Number(v))}>
                     <SelectTrigger>
                       <SelectValue placeholder={courses.loading ? 'Loading courses…' : 'Choose a course'} />
                     </SelectTrigger>
@@ -440,7 +518,16 @@ export function NewBookingPage() {
       )}
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={() => (step === 0 ? navigate(-1) : setStep(step - 1))}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (step > 0) return setStep(step - 1);
+            // Cancel throws the unfinished booking away.
+            finished.current = true;
+            clearDraft(user.id);
+            navigate(-1);
+          }}
+        >
           {step === 0 ? 'Cancel' : 'Back'}
         </Button>
         {step < STEPS.length - 1 ? (

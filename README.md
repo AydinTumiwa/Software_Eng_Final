@@ -97,6 +97,7 @@ Most new client requirements touch one of these places:
 | Monthly report contents | `server/services/reports.ts` (numbers) and `src/app/pages/ReportsPage.tsx` (layout, print, CSV) |
 | Who can see reports | `PERMISSIONS.viewReports` in `shared/config.ts` |
 | Who can end a booking early | `BOOKING_ACTIONS.endEarly` in `shared/config.ts` |
+| How unfinished bookings are kept between pages | `src/app/utils/bookingDraft.ts` (uses the browser tab's sessionStorage) |
 | Microsoft (university account) sign-in | Not built yet; step-by-step plan in `docs/microsoft-sign-in.md` |
 | New database column | `server/db/schema.sql` **and** a step in `server/db/migrations.ts` |
 | New page | `src/app/pages/`, then `routes.tsx` and `navigation.tsx` |
