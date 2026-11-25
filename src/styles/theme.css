@@ -19,7 +19,7 @@
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
+  --input: #CBD5E1;
   --input-background: #ffffff;
   --switch-background: #cbced4;
   --font-weight-medium: 500;
@@ -177,5 +177,20 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+/* Printing (Reports page): white page, keep bar colours, no cards split across pages. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  html,
+  body {
+    background: white !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
