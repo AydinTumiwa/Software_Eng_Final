@@ -12,7 +12,7 @@ export function MobileNav() {
     .slice(0, 4);
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50">
+    <nav className="print:hidden md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50">
       <div className="h-16" style={{ display: 'grid', gridTemplateColumns: `repeat(${navItems.length}, 1fr)` }}>
         {navItems.map((item) => {
           const Icon = item.icon;

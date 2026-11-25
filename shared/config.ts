@@ -34,6 +34,7 @@ export const PERMISSIONS = {
   manageUsers: ['admin'],
   viewAllBookings: ['lab_assistant', 'academic_registry', 'admin'],
   viewEmailLog: ['lab_assistant', 'admin'],
+  viewReports: ['lab_assistant', 'academic_registry', 'admin'],
 } satisfies Record<string, Role[]>;
 export type Permission = keyof typeof PERMISSIONS;
 
@@ -201,6 +202,16 @@ export const BOOKING_ACTIONS = {
     allowOwner: true,
     requiresNote: false,
   },
+  // For unexpected events while a VM is in use. The booking ends today and
+  // goes to purging, so the VM is still wiped before anyone else gets it.
+  endEarly: {
+    label: 'End booking early',
+    from: ['active'],
+    to: 'purging',
+    roles: ['lab_assistant', 'academic_registry', 'admin'],
+    allowOwner: true,
+    requiresNote: false,
+  },
 } satisfies Record<
   string,
   {
@@ -233,6 +244,13 @@ export const PASSWORD_RULES = {
   minLength: 8,
   requireLetter: true,
   requireNumber: true,
+};
+
+// "Forgot password?" lets users email themselves a one-time link to choose a
+// new password. Admins can still reset passwords from the Users page.
+export const PASSWORD_RESET = {
+  selfService: true,
+  linkValidMinutes: 30,
 };
 
 // Returns a list of problems with a new password (empty when it is valid).

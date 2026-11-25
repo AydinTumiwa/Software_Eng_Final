@@ -110,9 +110,9 @@ export function AppLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen bg-background pb-16 md:pb-0 print:pb-0 print:bg-white">
       {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 isolate">
+      <header className="print:hidden sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 isolate">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-4">
             {/* Mobile Menu */}
@@ -213,12 +213,12 @@ export function AppLayout() {
 
       {/* The page is rendered once; the sidebar is hidden on phones. */}
       <div className="md:flex">
-        <aside className="hidden md:block w-64 shrink-0 border-r bg-card sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+        <aside className="print:hidden hidden md:block w-64 shrink-0 border-r bg-card sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="p-4">
             <NavLinks />
           </div>
         </aside>
-        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 print:p-0">
           <Outlet />
         </main>
       </div>

@@ -179,6 +179,20 @@ export const messages = {
     link: '/app/bookings',
   }),
 
+  userEndedEarly: (b: Booking, by: string): EmailMessage => ({
+    subject: `Your booking on ${b.vmName} was ended early`,
+    body:
+      `Hi ${b.userName},\n\n${by} ended booking #${b.id} on ${b.vmName} early, on ${formatDate(b.endDate)}.` +
+      `${b.statusNote ? `\nReason: ${b.statusNote}` : ''}\n\nThe virtual machine will now be purged, so anything still on it ` +
+      `will be deleted.\n\n${link('/app/bookings')}${signOff}`,
+  }),
+  userEndedEarlyInApp: (b: Booking, by: string): InAppMessage => ({
+    type: 'ended',
+    title: 'Booking ended early',
+    message: `${by} ended your booking on ${b.vmName} early.${b.statusNote ? ` Reason: ${b.statusNote}` : ''}`,
+    link: '/app/bookings',
+  }),
+
   userEndedInApp: (b: Booking): InAppMessage => ({
     type: 'ended',
     title: 'Booking ended',
@@ -194,6 +208,14 @@ export const messages = {
       `Hi ${name},\n\nAn administrator created a ${ROLE_LABELS[role]} account for you.\n\n` +
       `Sign in: ${link('/login')}\nEmail: ${emailAddress}\nTemporary password: ${tempPassword}\n\n` +
       `You will be asked to choose a new password the first time you sign in.${signOff}`,
+  }),
+
+  passwordResetLink: (name: string, url: string, validMinutes: number): EmailMessage => ({
+    subject: `Reset your ${APP_NAME} password`,
+    body:
+      `Hi ${name},\n\nSomeone (hopefully you) asked to reset your password. Open this link to choose a new one:\n\n${url}\n\n` +
+      `The link works once and expires in ${validMinutes} minutes. If you didn't ask for this, ignore this email; ` +
+      `your password stays the same.${signOff}`,
   }),
 
   passwordReset: (name: string, tempPassword: string): EmailMessage => ({

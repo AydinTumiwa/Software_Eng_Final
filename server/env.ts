@@ -51,6 +51,14 @@ export const env = {
     .map((e) => e.trim())
     .filter(Boolean),
 
+  // AI password-help assistant on the Forgot password page. It turns on when
+  // an Anthropic API key is set (ANTHROPIC_API_KEY); AI_PASSWORD_HELP=false
+  // turns it off again.
+  aiHelp: {
+    enabled: !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) && bool(process.env.AI_PASSWORD_HELP, true),
+    model: process.env.AI_MODEL || 'claude-opus-5-5',
+  },
+
   // Demo mode shows the seeded test accounts on the sign-in page.
   demoMode: bool(process.env.DEMO_MODE, !isProduction),
   seedPassword: process.env.SEED_PASSWORD ?? 'Password123',

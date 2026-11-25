@@ -8,6 +8,7 @@ import { int } from '../http';
 import { bookingsRepo } from '../repositories/bookings';
 import { emailLogRepo, notificationsRepo } from '../repositories/notifications';
 import { vmsRepo } from '../repositories/vms';
+import { monthlyReport } from '../services/reports';
 import { todayISO } from '../../shared/dates';
 
 export const miscRouter = Router();
@@ -25,6 +26,11 @@ miscRouter.post('/notifications/read', (req, res) => {
 
 miscRouter.get('/emails', requirePermission('viewEmailLog'), (_req, res) => {
   res.json(emailLogRepo.list());
+});
+
+// ?month=YYYY-MM (defaults to the current month)
+miscRouter.get('/reports/monthly', requirePermission('viewReports'), (req, res) => {
+  res.json(monthlyReport(req.query.month));
 });
 
 miscRouter.get('/stats/dashboard', (req, res) => {

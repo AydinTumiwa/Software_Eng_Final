@@ -179,3 +179,18 @@
     line-height: 1.5;
   }
 }
+/* Printing (Reports page): white page, keep bar colours, no cards split across pages. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  html,
+  body {
+    background: white !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

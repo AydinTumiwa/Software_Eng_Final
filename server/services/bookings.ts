@@ -176,13 +176,16 @@ export function applyAction(actor: User, bookingId: number, actionKey: string, n
   }
   const note = action.requiresNote ? str(noteInput, 'Reason', { max: 500 }) : optionalStr(noteInput, 'Note', 500);
 
+  const today = todayISO();
   transaction(() => {
     bookingsRepo.update(booking.id, {
       status: action.to,
       status_note: note ?? booking.statusNote,
       ...(key === 'markReady' ? { ready_at: new Date().toISOString() } : {}),
+      // Ending early: the booking now ends today and the purge window starts.
+      ...(key === 'endEarly' ? { end_date: today, purge_until: addDays(today, BOOKING_RULES.purgeDays) } : {}),
     });
-    bookingsRepo.addEvent(booking.id, actor.id, booking.status, action.to, note);
+    bookingsRepo.addEvent(booking.id, actor.id, booking.status, action.to, note ?? (key === 'endEarly' ? 'Ended early' : null));
   });
 
   const updated = bookingsRepo.findById(booking.id)!;
@@ -191,8 +194,14 @@ export function applyAction(actor: User, bookingId: number, actionKey: string, n
   if (key === 'cancel' && updated.vmId && booking.status !== 'queued') {
     notifyLabAssistants(messages.labCancelled(updated), messages.labCancelledInApp(updated));
   }
+  if (key === 'endEarly') {
+    notifyLabAssistants(messages.labPurge(updated), messages.labPurgeInApp(updated));
+    if (actor.id !== updated.userId) {
+      notifyUser(updated.userId, messages.userEndedEarlyInApp(updated, actor.name), messages.userEndedEarly(updated, actor.name));
+    }
+  }
   // A VM may have just been freed up for someone waiting in the queue.
-  if (key === 'cancel' || key === 'reject' || key === 'completePurge') processQueue();
+  if (key === 'cancel' || key === 'reject' || key === 'completePurge' || key === 'endEarly') processQueue();
   return updated;
 }
 

@@ -14,6 +14,8 @@ import { LabTasksPage } from './pages/LabTasksPage';
 import { AllBookingsPage } from './pages/AllBookingsPage';
 import { UsersPage } from './pages/UsersPage';
 import { EmailLogPage } from './pages/EmailLogPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ProfilePage } from './pages/ProfilePage';
 
 export const router = createBrowserRouter([
@@ -21,6 +23,7 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/change-password', element: <ChangePasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/app',
     element: <RequireAuth />,
@@ -43,6 +46,10 @@ export const router = createBrowserRouter([
           {
             element: <RequirePermission permission="viewAllBookings" />,
             children: [{ path: 'all-bookings', element: <AllBookingsPage /> }],
+          },
+          {
+            element: <RequirePermission permission="viewReports" />,
+            children: [{ path: 'reports', element: <ReportsPage /> }],
           },
           {
             element: <RequirePermission permission="manageUsers" />,

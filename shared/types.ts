@@ -153,4 +153,52 @@ export interface AppMeta {
   demoPassword: string | null;
   demoAccounts: { email: string; name: string; role: Role }[];
   emailDelivery: 'smtp' | 'log';
+  selfServiceReset: boolean;
+  aiHelp: boolean;
+}
+
+export interface ForgotPasswordResult {
+  message: string;
+  // Only in demo mode without a mail server, so the link can be clicked in a demo.
+  demoLink?: string;
+}
+
+export interface PasswordHelpMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface PasswordHelpReply {
+  reply: string;
+  // The assistant suggests emailing a reset link; the person must confirm it.
+  offerResetLink: boolean;
+  email: string | null;
+}
+
+// Monthly usage report for staff (Reports page).
+export interface MonthlyReport {
+  month: string; // YYYY-MM
+  label: string; // e.g. "November 2026"
+  startDate: string;
+  endDate: string;
+  daysInMonth: number;
+  availableMonths: string[];
+  totals: {
+    requests: number; // bookings requested during the month (demand)
+    bookingsInUse: number; // bookings holding a VM on at least one day of the month
+    bookedDays: number; // VM-days held during the month
+    utilisation: number; // bookedDays / (VMs x days), in %
+    vmsCounted: number;
+    queueJoins: number;
+    rejected: number;
+    cancelled: number;
+    endedEarly: number;
+  };
+  mostBookedVm: { name: string; bookedDays: number } | null;
+  mostRequestedCategory: { category: VmCategory; requests: number } | null;
+  byVm: { vmId: number; name: string; category: VmCategory; bookings: number; bookedDays: number; utilisation: number }[];
+  byCategory: { category: VmCategory; requests: number; bookedDays: number }[];
+  byType: { type: BookingType; requests: number }[];
+  dailyInUse: { date: string; inUse: number }[];
+  trend: { month: string; label: string; requests: number; bookedDays: number }[];
 }

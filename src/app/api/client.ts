@@ -9,8 +9,12 @@ import type {
   Course,
   DashboardStats,
   EmailLogEntry,
+  ForgotPasswordResult,
+  MonthlyReport,
   NewBookingInput,
   Notification,
+  PasswordHelpMessage,
+  PasswordHelpReply,
   User,
   Vm,
   VmAvailability,
@@ -69,6 +73,14 @@ export const api = {
     me: () => get<User>('/auth/me'),
     changePassword: (currentPassword: string, newPassword: string) =>
       post<User>('/auth/change-password', { currentPassword, newPassword }),
+    forgotPassword: (email: string) => post<ForgotPasswordResult>('/auth/forgot-password', { email }),
+    checkResetLink: (token: string) => get<{ valid: boolean }>(`/auth/reset-password/check${query({ token })}`),
+    resetPassword: (token: string, newPassword: string) => post<User>('/auth/reset-password', { token, newPassword }),
+    passwordHelp: (messages: PasswordHelpMessage[]) => post<PasswordHelpReply>('/auth/password-help', { messages }),
+  },
+
+  reports: {
+    monthly: (month?: string) => get<MonthlyReport>(`/reports/monthly${query({ month })}`),
   },
 
   vms: {

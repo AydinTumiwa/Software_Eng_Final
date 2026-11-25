@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CalendarPlus,
   ClipboardList,
+  FileBarChart,
   LayoutDashboard,
   ListOrdered,
   Mail,
@@ -43,6 +44,7 @@ export const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
     items: [
       { label: 'Lab tasks', path: '/app/lab-tasks', icon: Wrench, permission: 'manageLabTasks', mobile: true },
       { label: 'All bookings', path: '/app/all-bookings', icon: Table2, permission: 'viewAllBookings' },
+      { label: 'Reports', path: '/app/reports', icon: FileBarChart, permission: 'viewReports' },
       { label: 'Users', path: '/app/users', icon: Users, permission: 'manageUsers' },
       { label: 'Email log', path: '/app/emails', icon: Mail, permission: 'viewEmailLog' },
     ],

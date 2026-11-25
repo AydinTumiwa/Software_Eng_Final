@@ -14,6 +14,15 @@ const VARIANTS: Partial<Record<BookingAction, 'default' | 'outline' | 'destructi
   completePurge: 'default',
   reject: 'destructive',
   cancel: 'outline',
+  endEarly: 'outline',
+};
+
+// Shown in the confirmation dialog for actions that need one.
+const CONFIRM_TEXT: Partial<Record<BookingAction, string>> = {
+  cancel: 'The virtual machine will be released and the lab assistant will be told.',
+  reject: 'The person who made the booking will be emailed this reason.',
+  endEarly:
+    'The booking ends today. The lab assistants are told to purge the virtual machine, so anything still on it will be deleted. The person it is for will be emailed.',
 };
 
 // Buttons for the status changes the signed-in user may make on a booking.
@@ -49,7 +58,7 @@ export function BookingActions({
     }
   };
 
-  const needsDialog = (a: BookingAction) => BOOKING_ACTIONS[a].requiresNote || a === 'cancel';
+  const needsDialog = (a: BookingAction) => BOOKING_ACTIONS[a].requiresNote || a in CONFIRM_TEXT;
   const dialogAction = confirming ? BOOKING_ACTIONS[confirming] : null;
 
   return (
@@ -72,16 +81,14 @@ export function BookingActions({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {dialogAction?.label} booking #{booking.id}?
+              {dialogAction?.label} (#{booking.id})?
             </DialogTitle>
-            <DialogDescription>
-              {confirming === 'cancel'
-                ? 'The virtual machine will be released and the lab assistant will be told.'
-                : 'The person who made the booking will be emailed this reason.'}
-            </DialogDescription>
+            <DialogDescription>{confirming ? CONFIRM_TEXT[confirming] : null}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="action-note">{dialogAction?.requiresNote ? 'Reason' : 'Note (optional)'}</Label>
+            <Label htmlFor="action-note">
+              {dialogAction?.requiresNote ? 'Reason' : confirming === 'endEarly' ? 'Reason (optional)' : 'Note (optional)'}
+            </Label>
             <Textarea id="action-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
           </div>
           <DialogFooter>
