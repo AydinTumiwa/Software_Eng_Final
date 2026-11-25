@@ -92,6 +92,12 @@ Most new client requirements touch one of these places:
 | Email and notification wording | `server/services/messages.ts` |
 | Who receives lab emails | `LAB_ASSISTANT_EMAILS` in `.env` (default: every lab assistant account) |
 | Password rules | `PASSWORD_RULES` in `shared/config.ts` |
+| Self-service password reset (on/off, link lifetime) | `PASSWORD_RESET` in `shared/config.ts` |
+| AI password-help assistant (on/off, model, wording) | `ANTHROPIC_API_KEY`, `AI_MODEL`, `AI_PASSWORD_HELP` in `.env`; instructions in `server/services/passwordHelp.ts` |
+| Monthly report contents | `server/services/reports.ts` (numbers) and `src/app/pages/ReportsPage.tsx` (layout, print, CSV) |
+| Who can see reports | `PERMISSIONS.viewReports` in `shared/config.ts` |
+| Who can end a booking early | `BOOKING_ACTIONS.endEarly` in `shared/config.ts` |
+| Microsoft (university account) sign-in | Not built yet; step-by-step plan in `docs/microsoft-sign-in.md` |
 | New database column | `server/db/schema.sql` **and** a step in `server/db/migrations.ts` |
 | New page | `src/app/pages/`, then `routes.tsx` and `navigation.tsx` |
 | New API endpoint | `server/routes/`, then a function in `src/app/api/client.ts` |

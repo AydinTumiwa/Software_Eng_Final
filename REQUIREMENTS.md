@@ -25,6 +25,16 @@ files to look at. Numbers such as 21 days and 2 days are settings in
 | 17 | Database to store the data; at least 10 test records | SQLite database (`server/data/lab-booking.db`). Test data: 13 users, 12 VMs, 11 courses, 16 bookings in every status, plus history, notifications and emails | `server/db/schema.sql`, `server/db/seed.ts` |
 | 18 | UI/UX: calendar where you click the start and end date | Range calendar: click the first day, then the last. Days beyond the allowed length are disabled; free VMs for the chosen dates are listed | `NewBookingPage.tsx`, `DateRangeField.tsx` |
 
+## Client feedback after the first demo (November 2026)
+
+| # | Request | How it is implemented | Main files |
+| - | ------- | --------------------- | ---------- |
+| 19 | Print the lab booking statistics | **Print report** button on the Reports page; the sidebar, header and buttons are hidden on paper and a title with the month, date and printer's name is added. Bars keep their colours | `ReportsPage.tsx`, print styles in `src/styles/theme.css` |
+| 20 | Monthly report: most in-demand, most booked | **Reports** page (Lab Assistant, Academic Registry, Admin): pick a month to see requests, VM-days booked, utilisation, the most booked VM, the most requested category, usage per VM and per category, VMs in use per day, and a 6-month trend. **Download CSV** for Excel | `server/services/reports.ts`, `ReportsPage.tsx` |
+| 21 | Make forgotten passwords easier, using AI | **Self-service reset:** "Forgot password?" emails a one-time link (expires in 30 minutes, only stored as a hash, same answer whether or not the email exists), and the link signs the person in after they choose a new password. **AI assistant** on the same page (Claude API) answers questions and can offer to send the link, which the person confirms with a button. It cannot see accounts or passwords, and turns on only when an Anthropic API key is set | `server/routes/auth.ts`, `server/services/passwordHelp.ts`, `ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx` |
+| 22 | Sign in with Sampoerna University (Microsoft) accounts | Not built yet (needs the university's IT team). Step-by-step plan using Microsoft Entra ID and OpenID Connect | `docs/microsoft-sign-in.md` |
+| 23 | End a VM booking early | **End booking early** on bookings that are in use (the person it's for, Lab Assistant, Academic Registry, Admin), with an optional reason. The booking ends today and moves to Purging, so the VM is still wiped; the lab assistants and the user are emailed | `BOOKING_ACTIONS.endEarly`, `applyAction()` in `server/services/bookings.ts` |
+
 ## Booking life cycle
 
 ```
@@ -39,6 +49,7 @@ files to look at. Numbers such as 21 days and 2 days are settings in
 
 *ready → active* and *active → purging* happen automatically (scheduler, every
 15 minutes and at start-up), as do backup reminders and queue assignment.
+*active → purging* also happens straight away when someone clicks **End booking early**.
 
 ## Assumptions to confirm with the client
 
